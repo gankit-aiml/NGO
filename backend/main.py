@@ -27,11 +27,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from fastapi.staticfiles import StaticFiles
-import os
 
-os.makedirs("../proofs", exist_ok=True)
-app.mount("/proofs", StaticFiles(directory="../proofs"), name="proofs")
 
 # Include routers
 app.include_router(whatsapp.router, prefix="/api/v1/webhook", tags=["WhatsApp"])

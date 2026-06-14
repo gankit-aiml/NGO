@@ -10,20 +10,25 @@ router = APIRouter()
 finance_agent = FinanceAgent()
 ledger_repo = LedgerRepo()
 
-PROOFS_DIR = "../proofs"
-os.makedirs(PROOFS_DIR, exist_ok=True)
+
 
 @router.post("/upload-receipt")
 async def upload_receipt(file: UploadFile = File(...)):
     file_bytes = await file.read()
-    
-    # Save file locally
     image_filename = f"{uuid.uuid4()}_{file.filename}"
-    file_path = os.path.join(PROOFS_DIR, image_filename)
-    with open(file_path, "wb") as buffer:
-        buffer.write(file_bytes)
     
-    receipt_url = f"http://127.0.0.1:8000/proofs/{image_filename}"
+    # Upload to Supabase Storage
+    try:
+        ledger_repo.supabase.storage.from_("field_proofs").upload(
+            path=image_filename,
+            file=file_bytes,
+            file_options={"content-type": file.content_type}
+        )
+        receipt_url = ledger_repo.supabase.storage.from_("field_proofs").get_public_url(image_filename)
+    except Exception as e:
+        print(f"Failed to upload to Supabase Storage: {e}")
+        receipt_url = None
+
     
     # Get OCRResponse object
     ocr_response = await finance_agent.scan_receipt(file.filename, file_bytes, mime_type=file.content_type)

@@ -12,8 +12,7 @@ router = APIRouter()
 impact_agent = ImpactAgent()
 pii_redactor = PIIRedactor()
 
-PROOFS_DIR = "../proofs"
-os.makedirs(PROOFS_DIR, exist_ok=True)
+
 
 async def process_agent_report(message: str, image_filename: str):
     try:
@@ -34,7 +33,7 @@ async def process_agent_report(message: str, image_filename: str):
             
         project_id = projects_res.data[0]['project_id']
         
-        image_url = f"http://127.0.0.1:8000/proofs/{image_filename}" if image_filename else None
+        image_url = supabase.storage.from_("field_proofs").get_public_url(image_filename) if image_filename else None
         
         log_record = {
             "project_id": project_id,
@@ -62,9 +61,17 @@ async def agent_report(
     image_filename = None
     if file:
         image_filename = f"{uuid.uuid4()}_{file.filename}"
-        file_path = os.path.join(PROOFS_DIR, image_filename)
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        file_bytes = await file.read()
+        try:
+            supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+            supabase.storage.from_("field_proofs").upload(
+                path=image_filename,
+                file=file_bytes,
+                file_options={"content-type": file.content_type}
+            )
+        except Exception as e:
+            print(f"Failed to upload to Supabase Storage: {e}")
+            image_filename = None
             
     background_tasks.add_task(process_agent_report, message, image_filename)
     

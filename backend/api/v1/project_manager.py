@@ -3,43 +3,17 @@ from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 from services.pm_agents import CharterAgent, ProcurementAgent, DispatchAgent
 from core.config import settings
+from supabase import create_client, Client
 import uuid
-import json
-import os
 import datetime
+import json
 
 router = APIRouter()
 charter_agent = CharterAgent()
 procurement_agent = ProcurementAgent()
 dispatch_agent = DispatchAgent()
 
-DB_DIR = "local_db"
-os.makedirs(DB_DIR, exist_ok=True)
-
-def load_db(filename, default=[]):
-    filepath = os.path.join(DB_DIR, filename)
-    if not os.path.exists(filepath):
-        with open(filepath, "w") as f:
-            json.dump(default, f)
-        return default
-    with open(filepath, "r") as f:
-        return json.load(f)
-
-def save_db(filename, data):
-    filepath = os.path.join(DB_DIR, filename)
-    with open(filepath, "w") as f:
-        json.dump(data, f)
-
-# Initialize mock field agents if empty
-agents_db = load_db("agents.json", [])
-if not agents_db:
-    agents_db = [
-        {"agent_id": str(uuid.uuid4()), "name": "Raju (Field)", "lat": 18.5204, "lng": 73.8567, "is_available": True},
-        {"agent_id": str(uuid.uuid4()), "name": "Sham (Field)", "lat": 18.5314, "lng": 73.8446, "is_available": True},
-        {"agent_id": str(uuid.uuid4()), "name": "Baburao (Field)", "lat": 18.5500, "lng": 73.8900, "is_available": True}
-    ]
-    save_db("agents.json", agents_db)
-
+supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 
 class CharterRequest(BaseModel):
     core_elements: str
@@ -56,7 +30,7 @@ class ProcurementRequest(BaseModel):
 
 class DispatchRequest(BaseModel):
     project_id: str
-    tasks: List[Dict[str, Any]] # e.g. [{"task_desc": "Deliver 10 bags", "target_lat": 18.5, "target_lng": 73.8}]
+    tasks: List[Dict[str, Any]]
 
 @router.post("/charter/generate")
 async def generate_charter(req: CharterRequest):
@@ -68,7 +42,6 @@ async def generate_charter(req: CharterRequest):
 
 @router.post("/charter/submit")
 async def submit_charter(req: CharterSubmit):
-    charters = load_db("charters.json")
     record = {
         "charter_id": str(uuid.uuid4()),
         "project_id": req.project_id,
@@ -77,28 +50,23 @@ async def submit_charter(req: CharterSubmit):
         "status": "pending_approval",
         "created_at": datetime.datetime.now().isoformat()
     }
-    charters.append(record)
-    save_db("charters.json", charters)
+    supabase.table("project_charters").insert(record).execute()
     return {"status": "success", "data": record}
 
 @router.get("/charters")
 async def get_charters():
-    return {"status": "success", "data": load_db("charters.json")}
+    res = supabase.table("project_charters").select("*").execute()
+    return {"status": "success", "data": res.data}
 
 @router.post("/charter/approve")
 async def approve_charter(charter_id: str):
-    charters = load_db("charters.json")
-    for c in charters:
-        if c["charter_id"] == charter_id:
-            c["status"] = "approved"
-    save_db("charters.json", charters)
+    supabase.table("project_charters").update({"status": "approved"}).eq("charter_id", charter_id).execute()
     return {"status": "success"}
 
 @router.post("/procurement/start")
 async def start_procurement(req: ProcurementRequest):
     try:
         quotes = await procurement_agent.fetch_quotations(req.requirements)
-        db_quotes = load_db("quotations.json")
         saved = []
         for q in quotes:
             record = {
@@ -111,9 +79,8 @@ async def start_procurement(req: ProcurementRequest):
                 "status": "received",
                 "created_at": datetime.datetime.now().isoformat()
             }
-            db_quotes.append(record)
+            supabase.table("quotations").insert(record).execute()
             saved.append(record)
-        save_db("quotations.json", db_quotes)
         return {"status": "success", "quotes": saved}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -121,51 +88,52 @@ async def start_procurement(req: ProcurementRequest):
 @router.post("/dispatch/assign")
 async def assign_dispatch(req: DispatchRequest):
     try:
-        agents = load_db("agents.json")
-        
-        # Ensure Raju exists as mock-agent-1
-        raju = next((a for a in agents if a["name"].startswith("Raju")), None)
-        if raju:
-            raju["agent_id"] = "mock-agent-1"
+        res = supabase.table("field_agents").select("*").eq("name", "Raju (Field)").execute()
+        if not res.data:
+            raju = {"agent_id": "mock-agent-1", "name": "Raju (Field)", "location_lat": 18.5204, "location_lng": 73.8567, "is_available": True}
+            # mock-agent-1 must exist in users table first. For MVP, we'll assume it exists or disable RLS constraint.
+            # Using raw data payload to avoid foreign key constraints for MVP if needed:
+            supabase.table("field_agents").insert(raju).execute()
         else:
-            raju = {"agent_id": "mock-agent-1", "name": "Raju (Field)", "lat": 18.5204, "lng": 73.8567, "is_available": True}
-            agents.append(raju)
-            
-        db_tasks = load_db("tasks.json")
+            raju = res.data[0]
+            raju["agent_id"] = "mock-agent-1" # override for MVP predictability
+
         saved_tasks = []
-        
-        # For the MVP investor demo, assign EVERY task to Raju (mock-agent-1)
         for task in req.tasks:
             record = {
                 "task_id": str(uuid.uuid4()),
                 "project_id": req.project_id,
                 "agent_id": "mock-agent-1",
-                "agent_name": raju["name"],
                 "task_desc": task["task_desc"],
                 "target_location_lat": task["target_lat"],
                 "target_location_lng": task["target_lng"],
                 "status": "assigned",
                 "created_at": datetime.datetime.now().isoformat()
             }
-            db_tasks.append(record)
-            saved_tasks.append(record)
+            # Add agent_name temporarily for frontend compatibility
+            record_frontend = record.copy()
+            record_frontend["agent_name"] = "Raju (Field)"
             
-        save_db("tasks.json", db_tasks)
-        save_db("agents.json", agents) 
-        
+            supabase.table("field_tasks").insert(record).execute()
+            saved_tasks.append(record_frontend)
+            
         return {"status": "success", "assignments": saved_tasks}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/field_tasks")
 async def get_all_tasks():
-    return {"status": "success", "tasks": load_db("tasks.json")}
+    res = supabase.table("field_tasks").select("*, field_agents(name)").execute()
+    tasks = res.data
+    # Map agent name for frontend
+    for t in tasks:
+        t["agent_name"] = t.get("field_agents", {}).get("name", "Raju (Field)")
+    return {"status": "success", "tasks": tasks}
 
 @router.get("/field_tasks/{agent_id}")
 async def get_agent_tasks(agent_id: str):
-    db_tasks = load_db("tasks.json")
-    agent_tasks = [t for t in db_tasks if t.get("agent_id") == agent_id]
-    return {"status": "success", "tasks": agent_tasks}
+    res = supabase.table("field_tasks").select("*").eq("agent_id", agent_id).execute()
+    return {"status": "success", "tasks": res.data}
 
 class TaskComplete(BaseModel):
     task_id: str
@@ -175,44 +143,43 @@ class TaskComplete(BaseModel):
 
 @router.post("/field_tasks/complete_endpoint")
 async def complete_task(req: TaskComplete):
-    db_tasks = load_db("tasks.json")
-    for t in db_tasks:
-        if t.get("task_id") == req.task_id:
-            t["status"] = "pending_pm_approval"
-            t["completion_notes"] = req.notes
-            t["completed_lat"] = req.lat
-            t["completed_lng"] = req.lng
-            t["photo_url"] = "https://images.unsplash.com/photo-1593113544331-561b36ad511b?q=80&w=400&auto=format&fit=crop" # Mock photo for demo
-            t["completed_at"] = datetime.datetime.now().isoformat()
-            
-    save_db("tasks.json", db_tasks)
+    update_data = {
+        "status": "pending_pm_approval",
+        "completion_notes": req.notes,
+        "completed_lat": req.lat,
+        "completed_lng": req.lng,
+        "photo_url": "https://images.unsplash.com/photo-1593113544331-561b36ad511b?q=80&w=400&auto=format&fit=crop",
+        "completed_at": datetime.datetime.now().isoformat()
+    }
+    supabase.table("field_tasks").update(update_data).eq("task_id", req.task_id).execute()
     return {"status": "success"}
 
 class TaskReview(BaseModel):
     task_id: str
-    action: str # "approve" or "reject"
+    action: str
 
 @router.post("/field_tasks/review")
 async def review_task(req: TaskReview):
-    db_tasks = load_db("tasks.json")
-    for t in db_tasks:
-        if t.get("task_id") == req.task_id:
-            if req.action == "approve":
-                t["status"] = "completed"
-                # free up agent
-                agents = load_db("agents.json")
-                for a in agents:
-                    if a["agent_id"] == t["agent_id"]:
-                        a["is_available"] = True
-                        a["lat"] = t.get("completed_lat", a["lat"])
-                        a["lng"] = t.get("completed_lng", a["lng"])
-                save_db("agents.json", agents)
-            elif req.action == "reject":
-                t["status"] = "assigned" # Back to agent
-                t["completion_notes"] = ""
-                t["photo_url"] = ""
-                
-    save_db("tasks.json", db_tasks)
+    if req.action == "approve":
+        supabase.table("field_tasks").update({"status": "completed"}).eq("task_id", req.task_id).execute()
+        
+        # Free up agent
+        task_res = supabase.table("field_tasks").select("*").eq("task_id", req.task_id).execute()
+        if task_res.data:
+            task = task_res.data[0]
+            supabase.table("field_agents").update({
+                "is_available": True,
+                "location_lat": task.get("completed_lat"),
+                "location_lng": task.get("completed_lng")
+            }).eq("agent_id", task["agent_id"]).execute()
+            
+    elif req.action == "reject":
+        supabase.table("field_tasks").update({
+            "status": "assigned",
+            "completion_notes": "",
+            "photo_url": ""
+        }).eq("task_id", req.task_id).execute()
+        
     return {"status": "success"}
 
 class ProcureSuggestRequest(BaseModel):
@@ -239,4 +206,10 @@ async def suggest_procurement(req: ProcureSuggestRequest):
 
 @router.get("/field_agents")
 async def get_agents():
-    return {"status": "success", "agents": load_db("agents.json")}
+    res = supabase.table("field_agents").select("*").execute()
+    agents = res.data
+    # Frontend expects lat/lng
+    for a in agents:
+        a["lat"] = a.get("location_lat")
+        a["lng"] = a.get("location_lng")
+    return {"status": "success", "agents": agents}
