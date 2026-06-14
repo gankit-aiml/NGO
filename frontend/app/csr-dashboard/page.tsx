@@ -25,7 +25,7 @@ export default function CSRDashboard() {
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
-        const res = await fetch('http://127.0.0.1:8000/api/v1/funder/dashboard-metrics');
+        const res = await fetch('https://ngo-fjwc.vercel.app/api/v1/funder/dashboard-metrics');
         const data = await res.json();
         if (data.status === 'success') {
           setMetrics({
@@ -42,8 +42,8 @@ export default function CSRDashboard() {
     const fetchFieldOps = async () => {
       try {
         const [agentsRes, tasksRes] = await Promise.all([
-          fetch('http://127.0.0.1:8000/api/v1/pm/field_agents'),
-          fetch('http://127.0.0.1:8000/api/v1/pm/field_tasks')
+          fetch('https://ngo-fjwc.vercel.app/api/v1/pm/field_agents'),
+          fetch('https://ngo-fjwc.vercel.app/api/v1/pm/field_tasks')
         ]);
         const agentsData = await agentsRes.json();
         const tasksData = await tasksRes.json();
@@ -139,7 +139,7 @@ export default function CSRDashboard() {
                 <p className="text-sm text-slate-500">Latest double-entry ledger & compliance audit.</p>
               </div>
               <button 
-                onClick={() => window.open("http://127.0.0.1:8000/api/v1/finance/audit-report", "_blank")}
+                onClick={() => window.open("https://ngo-fjwc.vercel.app/api/v1/finance/audit-report", "_blank")}
                 className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-4 py-2 rounded-md font-medium text-sm transition"
               >
                 Download PDF

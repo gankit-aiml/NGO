@@ -20,7 +20,7 @@ export default function FieldAgentDashboard() {
 
   const fetchTasks = async () => {
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/v1/pm/field_tasks/${agentId}`);
+      const res = await fetch(`https://ngo-fjwc.vercel.app/api/v1/pm/field_tasks/${agentId}`);
       const data = await res.json();
       setTasks(data.tasks || []);
     } catch (e) {
@@ -38,7 +38,7 @@ export default function FieldAgentDashboard() {
     const lng = 73.8 + (Math.random() * 0.1);
 
     try {
-      await fetch("http://127.0.0.1:8000/api/v1/pm/field_tasks/complete_endpoint", {
+      await fetch("https://ngo-fjwc.vercel.app/api/v1/pm/field_tasks/complete_endpoint", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

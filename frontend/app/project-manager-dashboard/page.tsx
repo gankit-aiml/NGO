@@ -37,7 +37,7 @@ export default function ProjectManagerDashboard() {
 
   const fetchPendingTasks = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/v1/pm/field_tasks");
+      const res = await fetch("https://ngo-fjwc.vercel.app/api/v1/pm/field_tasks");
       const data = await res.json();
       setPendingTasks(data.tasks.filter((t: any) => t.status === "pending_pm_approval"));
     } catch (e) {
@@ -48,7 +48,7 @@ export default function ProjectManagerDashboard() {
   const handleGenerateCharter = async () => {
     setIsGenerating(true);
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/v1/pm/charter/generate", {
+      const res = await fetch("https://ngo-fjwc.vercel.app/api/v1/pm/charter/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ core_elements: coreElements, project_id: "test" })
@@ -74,7 +74,7 @@ export default function ProjectManagerDashboard() {
 
   const handleSubmitCharter = async () => {
     try {
-      await fetch("http://127.0.0.1:8000/api/v1/pm/charter/submit", {
+      await fetch("https://ngo-fjwc.vercel.app/api/v1/pm/charter/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -129,7 +129,7 @@ export default function ProjectManagerDashboard() {
     setIsSuggesting(true);
     try {
       // Check if project is approved by looking at charters
-      const res = await fetch("http://127.0.0.1:8000/api/v1/pm/charters");
+      const res = await fetch("https://ngo-fjwc.vercel.app/api/v1/pm/charters");
       const data = await res.json();
       const approvedCharter = data.data.find((c: any) => c.status === "approved");
       
@@ -140,7 +140,7 @@ export default function ProjectManagerDashboard() {
       }
 
       // Hit our new endpoint to suggest based on approved charter
-      const suggRes = await fetch("http://127.0.0.1:8000/api/v1/pm/procurement/suggest", {
+      const suggRes = await fetch("https://ngo-fjwc.vercel.app/api/v1/pm/procurement/suggest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ charter_content: approvedCharter.content })
@@ -158,7 +158,7 @@ export default function ProjectManagerDashboard() {
   const handleSourceProcurement = async () => {
     setIsSourcing(true);
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/v1/pm/procurement/start", {
+      const res = await fetch("https://ngo-fjwc.vercel.app/api/v1/pm/procurement/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ project_id: "test", requirements })
@@ -180,7 +180,7 @@ export default function ProjectManagerDashboard() {
         target_lat: 18.5204 + (Math.random() * 0.1),
         target_lng: 73.8567 + (Math.random() * 0.1)
       }));
-      const res = await fetch("http://127.0.0.1:8000/api/v1/pm/dispatch/assign", {
+      const res = await fetch("https://ngo-fjwc.vercel.app/api/v1/pm/dispatch/assign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ project_id: "test", tasks: taskList })
@@ -196,7 +196,7 @@ export default function ProjectManagerDashboard() {
 
   const handleTaskAction = async (taskId: string, action: "approve" | "reject") => {
     try {
-      await fetch("http://127.0.0.1:8000/api/v1/pm/field_tasks/review", {
+      await fetch("https://ngo-fjwc.vercel.app/api/v1/pm/field_tasks/review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ task_id: taskId, action })

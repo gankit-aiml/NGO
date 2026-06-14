@@ -24,7 +24,7 @@ export default function AccountantDashboard() {
 
   const fetchLedger = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/v1/finance/ledger");
+      const res = await fetch("https://ngo-fjwc.vercel.app/api/v1/finance/ledger");
       const data = await res.json();
       setLedger(data.data || []);
     } catch (e) {
@@ -34,7 +34,7 @@ export default function AccountantDashboard() {
 
   const fetchDailyCash = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/v1/finance/daily-cash");
+      const res = await fetch("https://ngo-fjwc.vercel.app/api/v1/finance/daily-cash");
       const data = await res.json();
       setDailyCash(data.data || []);
     } catch (e) {
@@ -58,7 +58,7 @@ export default function AccountantDashboard() {
     formData.append("file", file);
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/v1/finance/upload-receipt", {
+      const res = await fetch("https://ngo-fjwc.vercel.app/api/v1/finance/upload-receipt", {
         method: "POST",
         body: formData,
       });
@@ -76,7 +76,7 @@ export default function AccountantDashboard() {
     if (!ocrData) return;
     setIsApproving(true);
     try {
-      await fetch("http://127.0.0.1:8000/api/v1/finance/approve-po", {
+      await fetch("https://ngo-fjwc.vercel.app/api/v1/finance/approve-po", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(ocrData),
@@ -94,7 +94,7 @@ export default function AccountantDashboard() {
   };
 
   const handleDownloadAudit = () => {
-    window.open("http://127.0.0.1:8000/api/v1/finance/audit-report", "_blank");
+    window.open("https://ngo-fjwc.vercel.app/api/v1/finance/audit-report", "_blank");
   };
 
   const handleLogout = () => {

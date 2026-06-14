@@ -10,7 +10,7 @@ export default function FieldOperations() {
   useEffect(() => {
     const fetchLogs = async () => {
       try {
-        const res = await fetch('http://127.0.0.1:8000/api/v1/funder/impact-logs');
+        const res = await fetch('https://ngo-fjwc.vercel.app/api/v1/funder/impact-logs');
         const data = await res.json();
         if (data.status === 'success') {
           setLogs(data.data);
