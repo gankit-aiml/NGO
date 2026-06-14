@@ -44,9 +44,7 @@ class FinanceAgent:
             elif "```" in text_response:
                 text_response = text_response.split("```")[1].strip()
                 
-            with open("ocr_errors.log", "a") as f:
-                f.write(f"RAW GEMINI RESPONSE:\\n{text_response}\\n\\n")
-                
+            print(f"RAW GEMINI RESPONSE:\\n{text_response}\\n\\n")
             data = json.loads(text_response)
             
             ocr_data = OCRReceiptData(
@@ -64,9 +62,7 @@ class FinanceAgent:
         except Exception as e:
             import traceback
             traceback.print_exc()
-            with open("ocr_errors.log", "a") as f:
-                f.write(f"FinanceAgent OCR Error: {e}\\n")
-                traceback.print_exc(file=f)
+            print(f"FinanceAgent OCR Error: {e}")
             print(f"FinanceAgent OCR Error: {e}")
             return OCRResponse(
                 success=False,
