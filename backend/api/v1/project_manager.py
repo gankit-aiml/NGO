@@ -15,6 +15,17 @@ dispatch_agent = DispatchAgent()
 
 supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 
+DEFAULT_PROJECT_ID = "d1d88ca6-d5ee-4f4c-b3f5-de1e22699ff9"
+
+def sanitize_project_id(pid: Optional[str]) -> str:
+    if not pid:
+        return DEFAULT_PROJECT_ID
+    try:
+        uuid.UUID(str(pid))
+        return str(pid)
+    except (ValueError, AttributeError):
+        return DEFAULT_PROJECT_ID
+
 class CharterRequest(BaseModel):
     core_elements: str
     project_id: str
@@ -45,7 +56,7 @@ async def submit_charter(req: CharterSubmit):
     try:
         record = {
             "charter_id": str(uuid.uuid4()),
-            "project_id": req.project_id,
+            "project_id": sanitize_project_id(req.project_id),
             "manager_id": req.manager_id,
             "content": req.content,
             "status": "pending_approval",
@@ -75,12 +86,13 @@ async def approve_charter(charter_id: str):
 @router.post("/procurement/start")
 async def start_procurement(req: ProcurementRequest):
     try:
+        valid_pid = sanitize_project_id(req.project_id)
         quotes = await procurement_agent.fetch_quotations(req.requirements)
         saved = []
         for q in quotes:
             record = {
                 "quote_id": str(uuid.uuid4()),
-                "project_id": req.project_id,
+                "project_id": valid_pid,
                 "vendor_name": q.get("vendor_name"),
                 "amount": q.get("amount"),
                 "details": q.get("details"),
@@ -107,11 +119,12 @@ async def assign_dispatch(req: DispatchRequest):
             raju = res.data[0]
             raju["agent_id"] = "mock-agent-1" # override for MVP predictability
 
+        valid_pid = sanitize_project_id(req.project_id)
         saved_tasks = []
         for task in req.tasks:
             record = {
                 "task_id": str(uuid.uuid4()),
-                "project_id": req.project_id,
+                "project_id": valid_pid,
                 "agent_id": "mock-agent-1",
                 "task_desc": task["task_desc"],
                 "target_location_lat": task["target_lat"],

@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut, FileText, ShoppingCart, Truck, CheckCircle2, UserCircle2, ArrowRight, Download, ClipboardCheck } from "lucide-react";
 
+const DEFAULT_PROJECT_ID = "d1d88ca6-d5ee-4f4c-b3f5-de1e22699ff9";
+
 export default function ProjectManagerDashboard() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("charter");
@@ -51,13 +53,17 @@ export default function ProjectManagerDashboard() {
       const res = await fetch("https://ngo-fjwc.vercel.app/api/v1/pm/charter/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ core_elements: coreElements, project_id: "test" })
+        body: JSON.stringify({ core_elements: coreElements, project_id: DEFAULT_PROJECT_ID })
       });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || errData.message || `Failed to generate charter (${res.status})`);
+      }
       const data = await res.json();
       setCharter(data.charter);
       setEditableCharterText(JSON.stringify(data.charter, null, 2));
-    } catch (e) {
-      alert("Error generating charter");
+    } catch (e: any) {
+      alert(`Error generating charter: ${e.message || e}`);
     } finally {
       setIsGenerating(false);
     }
@@ -78,7 +84,7 @@ export default function ProjectManagerDashboard() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          project_id: "d1d88ca6-d5ee-4f4c-b3f5-de1e22699ff9", 
+          project_id: DEFAULT_PROJECT_ID, 
           manager_id: "pm-1", 
           content: charter 
         })
@@ -165,12 +171,17 @@ export default function ProjectManagerDashboard() {
       const res = await fetch("https://ngo-fjwc.vercel.app/api/v1/pm/procurement/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ project_id: "test", requirements })
+        body: JSON.stringify({ project_id: DEFAULT_PROJECT_ID, requirements })
       });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || errData.message || `Procurement failed (${res.status})`);
+      }
       const data = await res.json();
-      setQuotes(data.quotes);
-    } catch (e) {
-      alert("Error fetching quotes");
+      setQuotes(data.quotes || []);
+    } catch (e: any) {
+      alert(`Error fetching quotes: ${e.message || e}`);
+      setQuotes([]);
     } finally {
       setIsSourcing(false);
     }
@@ -179,20 +190,25 @@ export default function ProjectManagerDashboard() {
   const handleAssignDispatch = async () => {
     setIsAssigning(true);
     try {
-      const taskList = tasks.split("\n").map((t) => ({
-        task_desc: t,
+      const taskList = tasks.split("\n").filter(t => t.trim().length > 0).map((t) => ({
+        task_desc: t.trim(),
         target_lat: 18.5204 + (Math.random() * 0.1),
         target_lng: 73.8567 + (Math.random() * 0.1)
       }));
       const res = await fetch("https://ngo-fjwc.vercel.app/api/v1/pm/dispatch/assign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ project_id: "test", tasks: taskList })
+        body: JSON.stringify({ project_id: DEFAULT_PROJECT_ID, tasks: taskList })
       });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || errData.message || `Dispatch failed (${res.status})`);
+      }
       const data = await res.json();
-      setAssignments(data.assignments);
-    } catch (e) {
-      alert("Error assigning dispatch");
+      setAssignments(data.assignments || []);
+    } catch (e: any) {
+      alert(`Error assigning dispatch: ${e.message || e}`);
+      setAssignments([]);
     } finally {
       setIsAssigning(false);
     }
@@ -385,7 +401,7 @@ export default function ProjectManagerDashboard() {
               </button>
             </div>
 
-            {quotes.length > 0 && (
+            {Boolean(quotes && quotes.length > 0) && (
               <div className="grid md:grid-cols-3 gap-6">
                 {quotes.map((q, idx) => (
                   <div key={idx} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden">
@@ -421,7 +437,7 @@ export default function ProjectManagerDashboard() {
               </button>
             </div>
             
-            {assignments.length > 0 && (
+            {Boolean(assignments && assignments.length > 0) && (
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-orange-200">
                 <h2 className="text-lg font-semibold text-slate-800 mb-4">AI Agent Assignments</h2>
                 <div className="space-y-3">
