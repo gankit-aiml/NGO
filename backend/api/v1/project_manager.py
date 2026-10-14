@@ -42,26 +42,35 @@ async def generate_charter(req: CharterRequest):
 
 @router.post("/charter/submit")
 async def submit_charter(req: CharterSubmit):
-    record = {
-        "charter_id": str(uuid.uuid4()),
-        "project_id": req.project_id,
-        "manager_id": req.manager_id,
-        "content": req.content,
-        "status": "pending_approval",
-        "created_at": datetime.datetime.now().isoformat()
-    }
-    supabase.table("project_charters").insert(record).execute()
-    return {"status": "success", "data": record}
+    try:
+        record = {
+            "charter_id": str(uuid.uuid4()),
+            "project_id": req.project_id,
+            "manager_id": req.manager_id,
+            "content": req.content,
+            "status": "pending_approval",
+            "created_at": datetime.datetime.now().isoformat()
+        }
+        supabase.table("project_charters").insert(record).execute()
+        return {"status": "success", "data": record}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/charters")
 async def get_charters():
-    res = supabase.table("project_charters").select("*").execute()
-    return {"status": "success", "data": res.data}
+    try:
+        res = supabase.table("project_charters").select("*").execute()
+        return {"status": "success", "data": res.data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/charter/approve")
 async def approve_charter(charter_id: str):
-    supabase.table("project_charters").update({"status": "approved"}).eq("charter_id", charter_id).execute()
-    return {"status": "success"}
+    try:
+        supabase.table("project_charters").update({"status": "approved"}).eq("charter_id", charter_id).execute()
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/procurement/start")
 async def start_procurement(req: ProcurementRequest):

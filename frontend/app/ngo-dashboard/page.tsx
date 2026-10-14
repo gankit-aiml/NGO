@@ -47,7 +47,7 @@ export default function NGODashboard() {
 
   const fetchCharters = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/v1/pm/charters');
+      const res = await fetch('https://ngo-fjwc.vercel.app/api/v1/pm/charters');
       const data = await res.json();
       setCharters(data.data || []);
     } catch (e) {
@@ -57,7 +57,7 @@ export default function NGODashboard() {
 
   const handleApproveCharter = async (id: string) => {
     try {
-      await fetch(`http://localhost:8000/api/v1/pm/charter/approve?charter_id=${id}`, {
+      await fetch(`https://ngo-fjwc.vercel.app/api/v1/pm/charter/approve?charter_id=${id}`, {
         method: 'POST'
       });
       alert('Charter Approved successfully!');
@@ -115,7 +115,7 @@ export default function NGODashboard() {
     formData.append('file', e.target.files[0]);
 
     try {
-      const res = await fetch('http://localhost:8000/api/v1/finance/upload-receipt', {
+      const res = await fetch('https://ngo-fjwc.vercel.app/api/v1/finance/upload-receipt', {
         method: 'POST',
         body: formData,
       });
@@ -135,7 +135,7 @@ export default function NGODashboard() {
 
   const handleApprove = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/v1/finance/approve-po', {
+      const res = await fetch('https://ngo-fjwc.vercel.app/api/v1/finance/approve-po', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(ocrData),

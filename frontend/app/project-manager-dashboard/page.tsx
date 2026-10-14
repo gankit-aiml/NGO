@@ -74,7 +74,7 @@ export default function ProjectManagerDashboard() {
 
   const handleSubmitCharter = async () => {
     try {
-      await fetch("https://ngo-fjwc.vercel.app/api/v1/pm/charter/submit", {
+      const res = await fetch("https://ngo-fjwc.vercel.app/api/v1/pm/charter/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -83,9 +83,13 @@ export default function ProjectManagerDashboard() {
           content: charter 
         })
       });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || errData.message || `Request failed with status ${res.status}`);
+      }
       alert("Charter submitted to NGO Head for approval!");
-    } catch (e) {
-      alert("Error submitting charter");
+    } catch (e: any) {
+      alert(`Error submitting charter: ${e.message || e}`);
     }
   };
 
